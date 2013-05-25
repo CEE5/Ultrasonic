@@ -8,7 +8,7 @@ using namespace std;
 
 
 #include <complex.h>
-
+  #include <stdlib.h>
 
 #define inSize 1024
 
@@ -145,15 +145,21 @@ int main()
     datei.open("output.txt", ios::out);
 
 
+    x[1] = 1.0;
+    x[2]= 4546.0;
+    x[3] = 2345.0;
+    x[4] = 345.0;
 
-    for(int i = 1; i<inSize; i++)
+    for(int i = 5; i<inSize; i++)
     {
 
-        x[i]= 0xff * sin(double(i)/80*PI*2);
-        y[i]= 0xff * sin(double(i)/80*PI*2);
+      //  x[i]= 0xff * sin(double(i)/80*PI*2);
+      //  y[i]= 0xff * sin(double(i-10)/80*PI*2);
+      x[i] = rand()/1000000;
+     y[i]=x[i-4];
+        cout <<creal(y[i])<<"\t"<<creal(x[i])<<endl;
 
        // datei << "x:\t" <<x[i]<<"\t \t y:\t"<<y[i]<<endl;
-
     }
 
     /*
@@ -178,12 +184,31 @@ int main()
     }*/
 
     FFT(x,1024);
-    IFFT(x,1024);
+    FFT(y,1024);
+  //  IFFT(x,1024);
+
+    double _Complex xkonj[inSize];
+    for(int i=0; i<inSize; i++)
+    {
+       xkonj[i] = creal(x[i])-cimag(x[i]) * _Complex_I;
+    }
+
+
+
+    double _Complex erg[inSize];
+    for(int i=0; i<inSize; i++)
+    {
+        erg[i]= 1024 * xkonj[i]*y[i];
+    }
+
+       IFFT(erg,1024);
+
+
 
     for(int i=0; i<inSize; i++)
     {
-
-        datei << creal(x[i])<<endl;
+       // datei << cabs(x[i])<<endl;
+        datei << creal(erg[i])<<endl;
     }
 
 
