@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1369329451 source:/home/co/codeblocks/korrelation/main.cpp
+	<iostream>
+	<math.h>
+	<fstream>
+
