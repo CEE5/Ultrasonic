@@ -3,107 +3,192 @@
 using namespace std;
 
 #include <math.h>
-
+#define PI 3.14159265
 #include <fstream>
 
-#define inSize 256
 
-#define _USE_MATH_DEFINES
+#include <complex.h>
 
-#include <stdio.h>
-#include <stdlib.h>
 
-#define PI	M_PI	/* pi to machine precision, defined in math.h */
-#define TWOPI	(2.0*PI)
+#define inSize 1024
 
 
 
-    int x[inSize];
-    int y[inSize];
-
-    int g[2*inSize-1];
-
-
-void four1(double data[], int nn, int isign)
+void IFFT(double _Complex *data, unsigned N)
 {
-    int n, mmax, m, j, istep, i;
-    double wtemp, wr, wpr, wpi, wi, theta;
-    double tempr, tempi;
-
-    n = nn << 1;
-    j = 1;
-    for (i = 1; i < n; i += 2) {
-	if (j > i) {
-	    tempr = data[j];     data[j] = data[i];     data[i] = tempr;
-	    tempr = data[j+1]; data[j+1] = data[i+1]; data[i+1] = tempr;
-	}
-	m = n >> 1;
-	while (m >= 2 && j > m) {
-	    j -= m;
-	    m >>= 1;
-	}
-	j += m;
+    unsigned butterflySize;
+// size for actual butterfly calculation
+    int i, j, k;
+// local index variables
+    double _Complex wActual; // actual rotation factor
+    double _Complex wStep;
+// step rotation factors
+    double _Complex tmp;
+// temp. value for butterfly calculation
+// loop over all level of FFT
+    for(butterflySize=N/2; butterflySize>0; butterflySize/=2)
+    {
+// evaluate angle step and set first angle
+        wStep = cos(+PI/butterflySize)+ sin(+PI/butterflySize)*_Complex_I;
+        wActual = 1 +0 * _Complex_I;
+// loop over number of butterflys
+        for(j=0; j<butterflySize; j++)
+        {
+// loop over number of FFTs
+            for(i=j; i<N; i+=2*butterflySize)
+            {
+// get index of second element
+                k = i+butterflySize;
+// perform butterfly calculation
+                tmp = data[i];
+// store one element
+                data[i] += data[k];
+// take sum
+                data[k] = tmp-data[k]; // take difference
+                data[k] *= wActual;
+// multiply with rotation factor
+            }
+// evaluate next rotation factor
+            wActual *= wStep;
+        }
     }
-    mmax = 2;
-    while (n > mmax) {
-	istep = 2*mmax;
-	theta = TWOPI/(isign*mmax);
-	wtemp = sin(0.5*theta);
-	wpr = -2.0*wtemp*wtemp;
-	wpi = sin(theta);
-	wr = 1.0;
-	wi = 0.0;
-	for (m = 1; m < mmax; m += 2) {
-	    for (i = m; i <= n; i += istep) {
-		j =i + mmax;
-		tempr = wr*data[j]   - wi*data[j+1];
-		tempi = wr*data[j+1] + wi*data[j];
-		data[j]   = data[i]   - tempr;
-		data[j+1] = data[i+1] - tempi;
-		data[i] += tempr;
-		data[i+1] += tempi;
-	    }
-	    wr = (wtemp = wr)*wpr - wi*wpi + wr;
-	    wi = wi*wpr + wtemp*wpi + wi;
-	}
-	mmax = istep;
+// perform bit reversal
+    j = 0;
+    for(i=0; i<N; i++)
+    {
+        if(j>i)
+        {
+// swap numbers
+            tmp = data[i];
+            data[i] = data[j];
+            data[j] = tmp;
+        }
+        k = N/2;
+        while(k>=2 && j>=k)
+        {
+            j -= k;
+            k /= 2;
+        }
+        j += k;
+        data[i]=data[i]/N;
+    }
+}
+void FFT(double _Complex *data, unsigned N)
+{
+    unsigned butterflySize;
+// size for actual butterfly calculation
+    int i, j, k;
+// local index variables
+    double _Complex wActual; // actual rotation factor
+    double _Complex wStep;
+// step rotation factors
+    double _Complex tmp;
+// temp. value for butterfly calculation
+// loop over all level of FFT
+    for(butterflySize=N/2; butterflySize>0; butterflySize/=2)
+    {
+// evaluate angle step and set first angle
+        wStep = cos(-PI/butterflySize)+ sin(-PI/butterflySize)*_Complex_I;
+        wActual = 1 +0 * _Complex_I;
+// loop over number of butterflys
+        for(j=0; j<butterflySize; j++)
+        {
+// loop over number of FFTs
+            for(i=j; i<N; i+=2*butterflySize)
+            {
+// get index of second element
+                k = i+butterflySize;
+// perform butterfly calculation
+                tmp = data[i];
+// store one element
+                data[i] += data[k];
+// take sum
+                data[k] = tmp-data[k]; // take difference
+                data[k] *= wActual;
+// multiply with rotation factor
+            }
+// evaluate next rotation factor
+            wActual *= wStep;
+        }
+    }
+// perform bit reversal
+    j = 0;
+    for(i=0; i<N; i++)
+    {
+        if(j>i)
+        {
+// swap numbers
+            tmp = data[i];
+            data[i] = data[j];
+            data[j] = tmp;
+        }
+        k = N/2;
+        while(k>=2 && j>=k)
+        {
+            j -= k;
+            k /= 2;
+        }
+        j += k;
     }
 }
 
 
+
 int main()
 {
+    double _Complex x[inSize];
+    double _Complex y[inSize];
+
+    int g[2*inSize-1];
 
     fstream datei;
     datei.open("output.txt", ios::out);
 
 
 
-    for(int i=0;i<inSize;i++){
+    for(int i = 1; i<inSize; i++)
+    {
 
-        x[i]= 0xff * sin(i*PI/40);
-        y[i]= 0xff * sin((i-50)*PI/40);
+        x[i]= 0xff * sin(double(i)/80*PI*2);
+        y[i]= 0xff * sin(double(i)/80*PI*2);
 
-        datei << "x:\t" <<x[i]<<"\t \t y:\t"<<y[i]<<endl;
+       // datei << "x:\t" <<x[i]<<"\t \t y:\t"<<y[i]<<endl;
 
     }
+
+    /*
     datei<<endl<<endl<<"Diskrete Korrelation"<<endl;
 
 
 
 
-    for(int m=0;m<2*inSize-1;m++){
-    g[m]=0;
-        for(int n=0;n<inSize;n++){
+    for(int m=0; m<2*inSize-1; m++)
+    {
+        g[m]=0;
+        for(int n=0; n<inSize; n++)
+        {
 
-           // g[m]+= x[n]*y[n+(m-(inSize-1))];
+            // g[m]+= x[n]*y[n+(m-(inSize-1))];
             g[m]+= x[n]*y[n+m];
         }
         g[m]=g[m]/inSize;
 
         datei<<g[m]<<endl;
 
+    }*/
+
+    FFT(x,1024);
+    IFFT(x,1024);
+
+    for(int i=0; i<inSize; i++)
+    {
+
+        datei << creal(x[i])<<endl;
     }
+
+
+
+
 
 
     datei.close();
